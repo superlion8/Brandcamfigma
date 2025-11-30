@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Heart, ExternalLink, Save, MoreHorizontal, Filter, Grid3X3, LayoutGrid } from 'lucide-react';
+import { Download, Heart, ExternalLink, Save, MoreHorizontal, Filter, Grid3X3, LayoutGrid, Camera, Wand2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAppStore, GeneratedImage } from '../../App';
 import { cn } from '../ui/utils';
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
-export function ImageAssetsModule() {
+export function ImageAssetsModule({ onOpenCamera, onOpenEditor }: { onOpenCamera: () => void, onOpenEditor: () => void }) {
   const { history, toggleFavorite, saveHistoryToAsset } = useAppStore();
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
@@ -39,12 +39,12 @@ export function ImageAssetsModule() {
     <div className="h-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
       {/* Header */}
       <div className="h-14 border-b bg-white dark:bg-zinc-900 flex items-center justify-between px-4 shrink-0">
-        <span className="font-semibold text-lg">生成历史</span>
+        <span className="font-semibold text-lg">图库</span>
         <div className="flex gap-2">
             <Tabs defaultValue="all" onValueChange={(v) => setFilter(v as any)} className="h-8">
-                <TabsList className="h-8">
-                    <TabsTrigger value="all" className="text-xs px-3 h-6">全部</TabsTrigger>
-                    <TabsTrigger value="favorites" className="text-xs px-3 h-6">收藏</TabsTrigger>
+                <TabsList className="h-8 bg-zinc-100">
+                    <TabsTrigger value="all" className="text-xs px-3 h-6 rounded-sm">全部</TabsTrigger>
+                    <TabsTrigger value="favorites" className="text-xs px-3 h-6 rounded-sm">收藏</TabsTrigger>
                 </TabsList>
             </Tabs>
         </div>
@@ -117,7 +117,7 @@ export function ImageAssetsModule() {
                 </div>
 
                 <div className="flex gap-3">
-                     <Button className="flex-1" onClick={() => {
+                     <Button className="flex-1" variant="outline" onClick={() => {
                          if (selectedImage) {
                              handleSaveToAssets(selectedImage);
                              setSelectedImage(null);
@@ -125,6 +125,13 @@ export function ImageAssetsModule() {
                      }}>
                          <Save className="w-4 h-4 mr-2" />
                          存为素材
+                     </Button>
+                     <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => {
+                         setSelectedImage(null);
+                         onOpenEditor();
+                     }}>
+                         <Wand2 className="w-4 h-4 mr-2" />
+                         去修图
                      </Button>
                 </div>
 

@@ -179,7 +179,7 @@ const INITIAL_HISTORY: GeneratedImage[] = [
 ];
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('camera');
+  const [currentTab, setCurrentTab] = useState('gallery');
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [history, setHistory] = useState<GeneratedImage[]>(INITIAL_HISTORY);
 
@@ -225,10 +225,15 @@ export default function App() {
   return (
     <AppContext.Provider value={{ assets, history, addAsset, addHistory, toggleFavorite, deleteAsset, saveHistoryToAsset }}>
       <MobileLayout currentTab={currentTab} onTabChange={setCurrentTab}>
-        {currentTab === 'camera' && <CameraModule />}
+        {currentTab === 'camera' && <CameraModule onReturn={() => setCurrentTab('gallery')} />}
         {currentTab === 'editor' && <EditorModule />}
         {currentTab === 'brand' && <BrandAssetsModule />}
-        {currentTab === 'gallery' && <ImageAssetsModule />}
+        {currentTab === 'gallery' && (
+            <ImageAssetsModule 
+                onOpenCamera={() => setCurrentTab('camera')} 
+                onOpenEditor={() => setCurrentTab('editor')}
+            />
+        )}
       </MobileLayout>
       <Toaster />
     </AppContext.Provider>

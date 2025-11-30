@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Check, Loader2, Upload, Sparkles, Image as ImageIcon, Aperture, X, User, Layout, Wand2 } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Upload, Sparkles, Image as ImageIcon, SlidersHorizontal, X, User, Layout, Wand2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAppStore, Asset, ModelStyle } from '../../App';
 import { toast } from 'sonner';
@@ -21,17 +21,22 @@ const MOCK_RESULTS = {
 };
 
 const MODEL_STYLES: { id: ModelStyle, label: string }[] = [
-  { id: 'asian', label: '日系 (Asian)' },
-  { id: 'korean', label: '韩系 (Korean)' },
-  { id: 'chinese', label: '中式 (Chinese)' },
-  { id: 'euro', label: '欧美 (Western)' },
+  { id: 'asian', label: '日系' },
+  { id: 'korean', label: '韩系' },
+  { id: 'chinese', label: '中式' },
+  { id: 'euro', label: '欧美' },
 ];
 
-export function CameraModule() {
+export function CameraModule({ onReturn }: { onReturn: () => void }) {
   const { addHistory, assets } = useAppStore();
-  const [mode, setMode] = useState<'camera' | 'setup' | 'processing' | 'results'>('camera');
+  const [mode, setMode] = useState<'camera' | 'review' | 'processing' | 'results'>('camera');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   
+  // Panel States
+  const [showCustomPanel, setShowCustomPanel] = useState(false);
+  const [showVibePanel, setShowVibePanel] = useState(false);
+  const [activeCustomTab, setActiveCustomTab] = useState('style');
+
   // Selections
   const [selectedBg, setSelectedBg] = useState<string | null>(null); // ID
   const [selectedModel, setSelectedModel] = useState<string | null>(null); // ID
@@ -53,7 +58,7 @@ export function CameraModule() {
   const handleCapture = () => {
     // Mock capture
     setCapturedImage("https://images.unsplash.com/photo-1629198688000-71f23e745b6e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800");
-    setMode('setup');
+    setMode('review');
   };
 
   const handleUploadClick = () => {
@@ -65,7 +70,7 @@ export function CameraModule() {
     if (file) {
       // In a real app we'd read the file. Here we just use a mock URL for "uploaded" state
       setCapturedImage("https://images.unsplash.com/photo-1523275335684-37898b6baf30?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800");
-      setMode('setup');
+      setMode('review');
     }
   };
 
@@ -122,10 +127,6 @@ export function CameraModule() {
 
   const handleRetake = () => {
     setCapturedImage(null);
-    setSelectedBg(null);
-    setSelectedModel(null);
-    setSelectedVibe(null);
-    setSelectedModelStyle(null);
     setMode('camera');
   };
 
@@ -138,7 +139,7 @@ export function CameraModule() {
       selectedId: string | null, 
       onSelect: (id: string) => void 
   }) => (
-    <div className="grid grid-cols-3 gap-3 p-1">
+    <div className="grid grid-cols-3 gap-3 p-1 pb-20">
       {items.map(asset => (
         <button
           key={asset.id}
@@ -176,196 +177,248 @@ export function CameraModule() {
       />
 
       <AnimatePresence mode="wait">
-        {mode === 'camera' && (
+        {(mode === 'camera' || mode === 'review') && (
           <motion.div 
-            key="camera"
+            key="camera-view"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-1 relative bg-black overflow-hidden flex flex-col"
           >
-            {/* Viewfinder */}
+            {/* Top Return Button */}
+            <div className="absolute top-4 left-4 z-20">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full bg-black/20 text-white hover:bg-black/40 backdrop-blur-md" 
+                    onClick={mode === 'review' ? handleRetake : onReturn}
+                >
+                    {mode === 'review' ? <X className="w-6 h-6" /> : <ArrowLeft className="w-6 h-6" />}
+                </Button>
+            </div>
+
+            {/* Viewfinder / Captured Image */}
             <div className="flex-1 relative group">
               <img 
-                src="https://images.unsplash.com/photo-1629198688000-71f23e745b6e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" 
-                className="absolute inset-0 w-full h-full object-cover opacity-60"
-                alt="Camera Preview"
+                src={capturedImage || "https://images.unsplash.com/photo-1629198688000-71f23e745b6e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800"}
+                className={cn(
+                    "absolute inset-0 w-full h-full object-cover transition-opacity",
+                    mode === 'camera' ? "opacity-60" : "opacity-100"
+                )}
+                alt="Preview"
               />
-              {/* Grid Overlay */}
-              <div className="absolute inset-0 pointer-events-none opacity-30">
-                 <div className="w-full h-full grid grid-cols-3 grid-rows-3">
-                    {[...Array(9)].map((_, i) => (
-                        <div key={i} className="border border-white/20"></div>
-                    ))}
-                 </div>
-              </div>
               
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-64 h-64 border border-white/50 rounded-lg relative">
-                  <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-white"></div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-white"></div>
-                  <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-white"></div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-white"></div>
-                </div>
+              {/* Selection Badges Overlay */}
+              <div className="absolute top-16 left-0 right-0 flex justify-center gap-2 z-10 px-4 flex-wrap pointer-events-none">
+                 {selectedModelStyle && <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md">风格: {MODEL_STYLES.find(s => s.id === selectedModelStyle)?.label}</Badge>}
+                 {activeModel && <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md">模特: {activeModel.name}</Badge>}
+                 {activeBg && <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md">背景: {activeBg.name}</Badge>}
+                 {activeVibe && <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md">氛围: {activeVibe.name}</Badge>}
               </div>
-              <div className="absolute top-8 left-0 right-0 text-center text-white/80 text-sm font-medium px-4 drop-shadow-md">
-                拍摄您的商品
-              </div>
-            </div>
 
-            {/* Controls */}
-            <div className="h-32 bg-black/90 flex items-center justify-around px-8 pb-6">
-               <button 
-                 onClick={handleUploadClick}
-                 className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors"
-               >
-                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5" />
-                 </div>
-                 <span className="text-[10px]">相册</span>
-               </button>
-
-              <button 
-                onClick={handleCapture}
-                className="w-18 h-18 rounded-full border-4 border-white/30 flex items-center justify-center relative group active:scale-95 transition-transform"
-              >
-                <div className="w-16 h-16 bg-white rounded-full group-active:bg-gray-200 transition-colors border-2 border-black"></div>
-              </button>
-
-               <div className="w-10 flex flex-col items-center gap-1 text-white/40">
-                 <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center border border-white/20">
-                    <Aperture className="w-5 h-5" />
-                 </div>
-                 <span className="text-[10px]">设置</span>
-               </div>
-            </div>
-          </motion.div>
-        )}
-
-        {mode === 'setup' && (
-           <motion.div 
-            key="setup"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col bg-zinc-50 dark:bg-zinc-950"
-          >
-            {/* Header */}
-            <div className="h-14 flex items-center justify-between px-4 border-b bg-white dark:bg-zinc-900 shrink-0 z-20">
-               <Button variant="ghost" size="icon" onClick={handleRetake} className="-ml-2">
-                 <ArrowLeft className="w-5 h-5" />
-               </Button>
-               <span className="font-semibold">Studio 配置</span>
-               <div className="w-8"></div>
-            </div>
-
-            {/* Content Area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Top: Preview */}
-                <div className="h-48 bg-zinc-100 dark:bg-zinc-900 relative shrink-0 flex justify-center items-center p-4">
-                    <div className="relative h-full aspect-[3/4] shadow-lg rounded-md overflow-hidden">
-                         {capturedImage && (
-                            <img src={capturedImage} className="w-full h-full object-cover" alt="Captured" />
-                        )}
-                        {/* Overlays for selection feedback */}
-                        <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-1">
-                             {activeModel && <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-white/80 backdrop-blur">模特: {activeModel.name}</Badge>}
-                             {selectedModelStyle && !activeModel && <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-white/80 backdrop-blur">风格: {MODEL_STYLES.find(s => s.id === selectedModelStyle)?.label}</Badge>}
-                             {activeBg && <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-white/80 backdrop-blur">背景: {activeBg.name}</Badge>}
-                        </div>
+              {mode === 'camera' && (
+                <>
+                  {/* Grid Overlay */}
+                  <div className="absolute inset-0 pointer-events-none opacity-30">
+                     <div className="w-full h-full grid grid-cols-3 grid-rows-3">
+                        {[...Array(9)].map((_, i) => (
+                            <div key={i} className="border border-white/20"></div>
+                        ))}
+                     </div>
+                  </div>
+                  
+                  {/* Focus Frame */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-64 h-64 border border-white/50 rounded-lg relative">
+                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-white"></div>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-white"></div>
+                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-white"></div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-white"></div>
                     </div>
-                </div>
+                  </div>
+                  <div className="absolute top-8 left-0 right-0 text-center text-white/80 text-sm font-medium px-4 drop-shadow-md">
+                    拍摄您的商品
+                  </div>
+                </>
+              )}
+            </div>
 
-                {/* Bottom: Tabs */}
-                <div className="flex-1 bg-white dark:bg-zinc-950 rounded-t-xl -mt-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-10 flex flex-col overflow-hidden relative">
-                    <Tabs defaultValue="model" className="flex-1 flex flex-col">
-                        <div className="px-4 pt-2 border-b">
-                            <TabsList className="w-full grid grid-cols-3 h-12 bg-transparent">
-                                <TabsTrigger value="model" className="data-[state=active]:bg-zinc-100 data-[state=active]:text-black rounded-none border-b-2 border-transparent data-[state=active]:border-black transition-none pb-3">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <User className="w-4 h-4" />
-                                        <span className="text-[10px]">模特</span>
-                                    </div>
-                                </TabsTrigger>
-                                <TabsTrigger value="bg" className="data-[state=active]:bg-zinc-100 data-[state=active]:text-black rounded-none border-b-2 border-transparent data-[state=active]:border-black transition-none pb-3">
-                                     <div className="flex flex-col items-center gap-1">
-                                        <Layout className="w-4 h-4" />
-                                        <span className="text-[10px]">背景</span>
-                                    </div>
-                                </TabsTrigger>
-                                <TabsTrigger value="vibe" className="data-[state=active]:bg-zinc-100 data-[state=active]:text-black rounded-none border-b-2 border-transparent data-[state=active]:border-black transition-none pb-3">
-                                     <div className="flex flex-col items-center gap-1">
-                                        <Sparkles className="w-4 h-4" />
-                                        <span className="text-[10px]">氛围</span>
-                                    </div>
-                                </TabsTrigger>
-                            </TabsList>
-                        </div>
+            {/* Bottom Controls Area */}
+            <div className="bg-black flex flex-col justify-end pb-[calc(2rem+env(safe-area-inset-bottom))] pt-8 px-8 relative z-20 shrink-0 min-h-[9rem]">
+                {mode === 'review' ? (
+                    <div className="w-full flex justify-center pb-4">
+                        <Button 
+                            size="lg" 
+                            className="w-48 h-14 rounded-full text-lg font-semibold gap-2 bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.3)] animate-in fade-in slide-in-from-bottom-4" 
+                            onClick={handleShootIt}
+                        >
+                            <Wand2 className="w-5 h-5" />
+                            Shoot It
+                        </Button>
+                    </div>
+                ) : (
+                   <div className="flex items-center justify-around">
+                       {/* Album */}
+                       <button 
+                         onClick={handleUploadClick}
+                         className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors w-12"
+                       >
+                         <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                            <ImageIcon className="w-5 h-5" />
+                         </div>
+                         <span className="text-[10px]">相册</span>
+                       </button>
 
-                        <div className="flex-1 overflow-y-auto p-4 bg-zinc-50/50">
-                            <TabsContent value="model" className="mt-0 space-y-6">
-                                {/* Style Presets */}
-                                <div>
-                                    <h3 className="text-xs font-semibold text-zinc-500 mb-3 uppercase">人种风格 (如果不选具体模特)</h3>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {MODEL_STYLES.map(style => (
-                                            <button
-                                                key={style.id}
-                                                onClick={() => {
-                                                    setSelectedModelStyle(selectedModelStyle === style.id ? null : style.id);
-                                                    if (selectedModelStyle !== style.id) setSelectedModel(null); // Clear specific model if picking style
-                                                }}
-                                                className={cn(
-                                                    "h-10 px-3 rounded-md text-sm font-medium border transition-colors text-left flex items-center justify-between",
-                                                    selectedModelStyle === style.id 
-                                                        ? "bg-blue-50 border-blue-200 text-blue-700" 
-                                                        : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-                                                )}
-                                            >
-                                                {style.label}
-                                                {selectedModelStyle === style.id && <Check className="w-4 h-4" />}
-                                            </button>
-                                        ))}
+                      {/* Shutter */}
+                      <button 
+                        onClick={handleCapture}
+                        className="w-20 h-20 rounded-full border-4 border-white/30 flex items-center justify-center relative group active:scale-95 transition-transform mx-4"
+                      >
+                        <div className="w-18 h-18 bg-white rounded-full group-active:bg-gray-200 transition-colors border-2 border-black"></div>
+                      </button>
+
+                       {/* Right Controls: Custom & Vibe */}
+                       <div className="flex gap-3">
+                           <button 
+                             onClick={() => setShowCustomPanel(true)}
+                             className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors"
+                           >
+                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
+                                <SlidersHorizontal className="w-5 h-5" />
+                             </div>
+                             <span className="text-[10px]">自定义</span>
+                           </button>
+                           
+                           <button 
+                             onClick={() => setShowVibePanel(true)}
+                             className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors"
+                           >
+                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
+                                <Sparkles className="w-5 h-5" />
+                             </div>
+                             <span className="text-[10px]">氛围</span>
+                           </button>
+                       </div>
+                    </div>
+                )}
+            </div>
+            
+            {/* Slide-up Panel: Custom */}
+            <AnimatePresence>
+                {showCustomPanel && (
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                            onClick={() => setShowCustomPanel(false)}
+                        />
+                        <motion.div 
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="absolute bottom-0 left-0 right-0 h-[60%] bg-white dark:bg-zinc-900 rounded-t-2xl z-50 flex flex-col overflow-hidden"
+                        >
+                            <div className="h-12 border-b flex items-center justify-between px-4 shrink-0">
+                                <span className="font-semibold">自定义配置</span>
+                                <Button variant="ghost" size="sm" onClick={() => setShowCustomPanel(false)} className="h-8 w-8 p-0 rounded-full">
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <div className="p-2 flex gap-2 border-b overflow-x-auto shrink-0">
+                                {[
+                                    { id: 'style', label: '风格' },
+                                    { id: 'model', label: '模特' },
+                                    { id: 'bg', label: '背景' }
+                                ].map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => setActiveCustomTab(tab.id)}
+                                        className={cn(
+                                            "px-4 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                                            activeCustomTab === tab.id 
+                                                ? "bg-black text-white" 
+                                                : "bg-zinc-100 text-zinc-600"
+                                        )}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 p-4">
+                                {activeCustomTab === 'style' && (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {MODEL_STYLES.map(style => (
+                                                <button
+                                                    key={style.id}
+                                                    onClick={() => {
+                                                        setSelectedModelStyle(selectedModelStyle === style.id ? null : style.id);
+                                                        if (selectedModelStyle !== style.id) setSelectedModel(null);
+                                                    }}
+                                                    className={cn(
+                                                        "h-12 px-4 rounded-lg text-sm font-medium border transition-all flex items-center justify-between",
+                                                        selectedModelStyle === style.id 
+                                                            ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                                                            : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300"
+                                                    )}
+                                                >
+                                                    {style.label}
+                                                    {selectedModelStyle === style.id && <Check className="w-4 h-4" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-zinc-400 text-center mt-4">选择一种风格，AI 将自动匹配模特特征</p>
                                     </div>
-                                </div>
-                                
-                                {/* Specific Model Assets */}
-                                <div>
-                                    <h3 className="text-xs font-semibold text-zinc-500 mb-3 uppercase">我的模特资产</h3>
+                                )}
+                                {activeCustomTab === 'model' && (
                                     <AssetGrid 
                                         items={modelAssets} 
                                         selectedId={selectedModel} 
                                         onSelect={(id) => {
                                             const newId = selectedModel === id ? null : id;
                                             setSelectedModel(newId);
-                                            if (newId) setSelectedModelStyle(null); // Clear style if picking specific model
+                                            if (newId) setSelectedModelStyle(null);
                                         }} 
                                     />
-                                </div>
-                            </TabsContent>
+                                )}
+                                {activeCustomTab === 'bg' && (
+                                    <AssetGrid 
+                                        items={backgroundAssets} 
+                                        selectedId={selectedBg} 
+                                        onSelect={(id) => setSelectedBg(selectedBg === id ? null : id)} 
+                                    />
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
-                            <TabsContent value="bg" className="mt-0 space-y-6">
-                                <p className="text-xs text-zinc-400 mb-2">选择背景图以保持一致性</p>
-                                <AssetGrid items={backgroundAssets} selectedId={selectedBg} onSelect={(id) => setSelectedBg(selectedBg === id ? null : id)} />
-                            </TabsContent>
-
-                            <TabsContent value="vibe" className="mt-0 space-y-6">
-                                <p className="text-xs text-zinc-400 mb-2">选择整体氛围风格</p>
-                                <AssetGrid items={vibeAssets} selectedId={selectedVibe} onSelect={(id) => setSelectedVibe(selectedVibe === id ? null : id)} />
-                            </TabsContent>
-                        </div>
-                    </Tabs>
-                    
-                    {/* Footer Action */}
-                    <div className="p-4 border-t bg-white dark:bg-zinc-900 shadow-up z-20">
-                        <Button 
-                            size="lg" 
-                            className="w-full h-12 text-base gap-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200" 
-                            onClick={handleShootIt}
+            {/* Slide-up Panel: Vibe */}
+            <AnimatePresence>
+                {showVibePanel && (
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                            onClick={() => setShowVibePanel(false)}
+                        />
+                        <motion.div 
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="absolute bottom-0 left-0 right-0 h-[50%] bg-white dark:bg-zinc-900 rounded-t-2xl z-50 flex flex-col overflow-hidden"
                         >
-                            <Wand2 className="w-5 h-5" />
-                            Shoot It (生成)
-                        </Button>
-                    </div>
-                </div>
-            </div>
-           </motion.div>
+                            <div className="h-12 border-b flex items-center justify-between px-4 shrink-0">
+                                <span className="font-semibold">选择氛围</span>
+                                <Button variant="ghost" size="sm" onClick={() => setShowVibePanel(false)} className="h-8 w-8 p-0 rounded-full">
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 p-4">
+                                <AssetGrid items={vibeAssets} selectedId={selectedVibe} onSelect={(id) => setSelectedVibe(selectedVibe === id ? null : id)} />
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+          </motion.div>
         )}
 
         {mode === 'processing' && (
